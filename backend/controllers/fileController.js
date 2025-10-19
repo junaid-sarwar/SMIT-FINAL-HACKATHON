@@ -3,26 +3,22 @@ import { AiInsight } from "../models/AiInsight.js";
 import getDataUri from "../config/dataUri.js";
 import cloudinary from "../config/cloudinary.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-const pdf = (await import("pdf-parse")).default;
 import Tesseract from "tesseract.js";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+const pdf = (await import("pdf-parse")).default;
+
 dotenv.config();
 
 // ========== UPLOAD FILE ==========
 export const uploadFile = async (req, res) => {
   try {
-    const { reportType, reportDate } = req.body;
-    const userId = req.userId; // from isAuth middleware
+    const { reportType, notes, reportDate } = req.body;
+    const userId = req.userId;
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded",
-      });
-    }
+    if (!req.file)
+      return res.status(400).json({ success: false, message: "No file uploaded" });
 
-    // Convert file & upload to Cloudinary
     const fileUri = getDataUri(req.file);
     const uploadedFile = await cloudinary.uploader.upload(fileUri.content, {
       resource_type: "raw",
@@ -35,13 +31,12 @@ export const uploadFile = async (req, res) => {
       reportName: req.file.originalname,
       fileType: req.file.mimetype.includes("image") ? "image" : "pdf",
       date: reportDate || Date.now(),
+      reportType: reportType || "general",
+      notes: notes || "",
+      publicId: uploadedFile.public_id,
     });
 
-    return res.status(201).json({
-      success: true,
-      message: "File uploaded successfully",
-      file: newFile,
-    });
+    return res.status(201).json({ success: true, message: "File uploaded successfully", file: newFile });
   } catch (error) {
     console.error("Upload Error:", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
@@ -53,16 +48,10 @@ export const getAllFiles = async (req, res) => {
   try {
     const userId = req.userId;
     const files = await File.find({ user: userId }).sort({ createdAt: -1 });
-    return res.status(200).json({
-      success: true,
-      files,
-    });
+    return res.status(200).json({ success: true, files });
   } catch (error) {
     console.error("Get Files Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -73,13 +62,10 @@ export const deleteFile = async (req, res) => {
     const file = await File.findById(fileId);
     if (!file) return res.status(404).json({ success: false, message: "File not found" });
 
-    await cloudinary.uploader.destroy(file.publicId);
+    if (file.publicId) await cloudinary.uploader.destroy(file.publicId, { resource_type: "raw" });
     await file.deleteOne();
 
-    return res.status(200).json({
-      success: true,
-      message: "File deleted successfully",
-    });
+    return res.status(200).json({ success: true, message: "File deleted successfully" });
   } catch (error) {
     console.error("Delete Error:", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
@@ -93,11 +79,9 @@ export const analyzeFileWithAI = async (req, res) => {
     const file = await File.findById(fileId);
     if (!file) return res.status(404).json({ success: false, message: "File not found" });
 
-    // 1️⃣ Download the file from Cloudinary
     const response = await fetch(file.fileUrl);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // 2️⃣ Extract text (PDF or Image)
     let extractedText = "";
     if (file.fileType === "pdf") {
       const pdfData = await pdf(buffer);
@@ -107,14 +91,8 @@ export const analyzeFileWithAI = async (req, res) => {
       extractedText = text;
     }
 
-    if (!extractedText.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Could not extract text from the file.",
-      });
-    }
+    if (!extractedText.trim()) return res.status(400).json({ success: false, message: "Could not extract text from the file." });
 
-    // 3️⃣ Gemini AI Analysis
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -143,15 +121,9 @@ ${extractedText}
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
 
-    // 4️⃣ Parse Gemini Response
     let parsedData = {};
-    try {
-      parsedData = JSON.parse(text);
-    } catch {
-      parsedData = { englishSummary: text };
-    }
+    try { parsedData = JSON.parse(text); } catch { parsedData = { englishSummary: text }; }
 
-    // 5️⃣ Ensure Required Fields Exist
     const aiInsight = await AiInsight.create({
       user: file.user,
       file: file._id,
@@ -166,16 +138,9 @@ ${extractedText}
       disclaimer: parsedData.disclaimer || "Yeh AI sirf samajhne ke liye hai, ilaaj ke liye nahi.",
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "AI analysis completed successfully",
-      aiInsight,
-    });
+    return res.status(200).json({ success: true, message: "AI analysis completed successfully", aiInsight });
   } catch (error) {
     console.error("AI Analysis Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error analyzing report with Gemini",
-    });
+    return res.status(500).json({ success: false, message: "Error analyzing report with Gemini" });
   }
 };

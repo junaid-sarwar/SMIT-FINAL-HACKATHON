@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navbar } from "../components/shared/Navbar"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,45 +18,112 @@ export default function VitalsPage() {
     temperature: "",
     weight: "",
   })
+  const [latestVitals, setLatestVitals] = useState({})
+  const [vitalHistory, setVitalHistory] = useState([])
+  const [chartData, setChartData] = useState([])
 
-  const chartData = [
-    { date: "Mon", heartRate: 72, systolic: 120, diastolic: 80, weight: 75 },
-    { date: "Tue", heartRate: 75, systolic: 122, diastolic: 82, weight: 75.2 },
-    { date: "Wed", heartRate: 70, systolic: 118, diastolic: 78, weight: 75 },
-    { date: "Thu", heartRate: 78, systolic: 125, diastolic: 85, weight: 75.5 },
-    { date: "Fri", heartRate: 72, systolic: 120, diastolic: 80, weight: 75.3 },
-    { date: "Sat", heartRate: 68, systolic: 115, diastolic: 75, weight: 75.1 },
-    { date: "Sun", heartRate: 70, systolic: 118, diastolic: 78, weight: 75 },
-  ]
+  const token = localStorage.getItem("token")
 
-  const vitalHistory = [
-    { id: 1, date: "Today", time: "10:30 AM", heartRate: 70, bp: "118/78", temp: "98.6°F", weight: "75 kg" },
-    { id: 2, date: "Yesterday", time: "09:15 AM", heartRate: 68, bp: "115/75", temp: "98.4°F", weight: "75.1 kg" },
-    { id: 3, date: "2 days ago", time: "08:45 AM", heartRate: 72, bp: "120/80", temp: "98.7°F", weight: "75.3 kg" },
-  ]
+  // Fetch latest vitals for summary
+  const fetchLatestVitals = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/vitals/latest", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.success) setLatestVitals(data.vitals || {})
+    } catch (err) {
+      console.error("Failed to fetch latest vitals:", err)
+    }
+  }
+
+  // Fetch vitals history
+  const fetchVitalsHistory = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/vitals/history", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setVitalHistory(data.history || [])
+
+        // Prepare chart data (last 7 records)
+        const chart = data.history
+          .slice(0, 7)
+          .map((v) => ({
+            date: new Date(v.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
+            heartRate: v.notes?.match(/HeartRate: (\d+)/)?.[1] || 0,
+            systolic: v.bp?.split("/")[0] || 0,
+            diastolic: v.bp?.split("/")[1] || 0,
+            weight: v.weight || 0,
+          }))
+          .reverse()
+        setChartData(chart)
+      }
+    } catch (err) {
+      console.error("Failed to fetch vitals history:", err)
+    }
+  }
+
+  useEffect(() => {
+    fetchLatestVitals()
+    fetchVitalsHistory()
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setVitals({ ...vitals, [name]: value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log("Vitals submitted:", vitals)
-    alert("Vitals logged successfully!")
-    setVitals({
-      heartRate: "",
-      bloodPressureSys: "",
-      bloodPressureDia: "",
-      temperature: "",
-      weight: "",
-    })
+
+    // Construct payload to match backend schema
+    const payload = {
+      bp: vitals.bloodPressureSys && vitals.bloodPressureDia
+        ? `${vitals.bloodPressureSys}/${vitals.bloodPressureDia}`
+        : "",
+      weight: vitals.weight || "",
+      notes: `HeartRate: ${vitals.heartRate || "--"}, Temp: ${vitals.temperature || "--"}`,
+      sugar: "", // optional
+    }
+
+    try {
+
+      // Get token from cookie
+const token = document.cookie
+  .split("; ")
+  .find(row => row.startsWith("token="))
+  ?.split("=")[1];
+
+
+      const res = await fetch("http://localhost:8080/api/vitals/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        alert("Vitals logged successfully!")
+        setVitals({ heartRate: "", bloodPressureSys: "", bloodPressureDia: "", temperature: "", weight: "" })
+        fetchLatestVitals()
+        fetchVitalsHistory()
+      } else {
+        alert(data.message || "Failed to log vitals")
+      }
+    } catch (err) {
+      console.error("Error submitting vitals:", err)
+      alert("Error submitting vitals")
+    }
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <Navbar />
-
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground">Health Vitals</h1>
@@ -69,7 +136,7 @@ export default function VitalsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Heart Rate</p>
-                <p className="text-3xl font-bold text-primary mt-2">70</p>
+                <p className="text-3xl font-bold text-primary mt-2">{latestVitals.notes?.match(/HeartRate: (\d+)/)?.[1] || "--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">bpm</p>
               </div>
               <Heart className="w-10 h-10 text-primary/20" />
@@ -80,7 +147,7 @@ export default function VitalsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Blood Pressure</p>
-                <p className="text-3xl font-bold text-secondary mt-2">118/78</p>
+                <p className="text-3xl font-bold text-secondary mt-2">{latestVitals.bp || "--/--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">mmHg</p>
               </div>
               <Droplet className="w-10 h-10 text-secondary/20" />
@@ -91,7 +158,7 @@ export default function VitalsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Temperature</p>
-                <p className="text-3xl font-bold text-accent mt-2">98.6</p>
+                <p className="text-3xl font-bold text-accent mt-2">{latestVitals.notes?.match(/Temp: ([\d.]+)/)?.[1] || "--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">°F</p>
               </div>
               <Thermometer className="w-10 h-10 text-accent/20" />
@@ -102,7 +169,7 @@ export default function VitalsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Weight</p>
-                <p className="text-3xl font-bold text-primary mt-2">75</p>
+                <p className="text-3xl font-bold text-primary mt-2">{latestVitals.weight || "--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">kg</p>
               </div>
               <Weight className="w-10 h-10 text-primary/20" />
@@ -156,94 +223,60 @@ export default function VitalsPage() {
               <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Heart Rate (bpm)</label>
-                  <Input
-                    type="number"
-                    name="heartRate"
-                    value={vitals.heartRate}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 72"
-                  />
+                  <Input type="number" name="heartRate" value={vitals.heartRate} onChange={handleInputChange} placeholder="e.g., 72" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Systolic (mmHg)</label>
-                    <Input
-                      type="number"
-                      name="bloodPressureSys"
-                      value={vitals.bloodPressureSys}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 120"
-                    />
+                    <Input type="number" name="bloodPressureSys" value={vitals.bloodPressureSys} onChange={handleInputChange} placeholder="e.g., 120" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Diastolic (mmHg)</label>
-                    <Input
-                      type="number"
-                      name="bloodPressureDia"
-                      value={vitals.bloodPressureDia}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 80"
-                    />
+                    <Input type="number" name="bloodPressureDia" value={vitals.bloodPressureDia} onChange={handleInputChange} placeholder="e.g., 80" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Temperature (°F)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    name="temperature"
-                    value={vitals.temperature}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 98.6"
-                  />
+                  <Input type="number" step="0.1" name="temperature" value={vitals.temperature} onChange={handleInputChange} placeholder="e.g., 98.6" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Weight (kg)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    name="weight"
-                    value={vitals.weight}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 75"
-                  />
+                  <Input type="number" step="0.1" name="weight" value={vitals.weight} onChange={handleInputChange} placeholder="e.g., 75" />
                 </div>
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-                  Log Vitals
-                </Button>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Log Vitals</Button>
               </form>
             </TabsContent>
 
             <TabsContent value="history" className="mt-6">
               <div className="space-y-3">
                 {vitalHistory.map((entry) => (
-                  <div key={entry.id} className="p-4 rounded-lg bg-muted/50 hover:bg-muted transition-smooth">
+                  <div key={entry._id} className="p-4 rounded-lg bg-muted/50 hover:bg-muted transition-smooth">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <p className="font-medium text-foreground">{entry.date}</p>
-                        <p className="text-sm text-muted-foreground">{entry.time}</p>
+                        <p className="font-medium text-foreground">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                        <p className="text-sm text-muted-foreground">{new Date(entry.createdAt).toLocaleTimeString()}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Heart Rate</p>
-                        <p className="font-medium text-foreground">{entry.heartRate} bpm</p>
+                        <p className="font-medium text-foreground">{entry.notes?.match(/HeartRate: (\d+)/)?.[1] || "--"} bpm</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Blood Pressure</p>
-                        <p className="font-medium text-foreground">{entry.bp}</p>
+                        <p className="font-medium text-foreground">{entry.bp || "--/--"}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Temperature</p>
-                        <p className="font-medium text-foreground">{entry.temp}</p>
+                        <p className="font-medium text-foreground">{entry.notes?.match(/Temp: ([\d.]+)/)?.[1] || "--"}°F</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Weight</p>
-                        <p className="font-medium text-foreground">{entry.weight}</p>
+                        <p className="font-medium text-foreground">{entry.weight || "--"} kg</p>
                       </div>
                     </div>
                   </div>

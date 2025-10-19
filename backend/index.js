@@ -30,7 +30,7 @@ app.use(cookieParser());
 
 // ✅ REST API Routes
 app.use("/api/user", userRoutes);
-app.use("/api/file", fileRoutes);
+app.use("/api/files", fileRoutes);
 app.use("/api/vitals", vitalsRoutes);
 app.use("/api/insights", aiInsightRoutes);
 
