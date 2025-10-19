@@ -39,6 +39,7 @@ const aiInsightSchema = new mongoose.Schema(
       type: String,
       default: "Yeh AI sirf samajhne ke liye hai, ilaaj ke liye nahi.",
     },
+    rawResponse: { type: Object }
   },
   { timestamps: true }
 );

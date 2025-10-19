@@ -1,9 +1,7 @@
-//controllers/userControllers.js
+// controllers/userControllers.js
 import { User } from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import getDataUri from "../config/dataUri.js";
-import cloudinary from "../config/cloudinary.js";
 
 // REGISTER
 export const register = async (req, res) => {
@@ -53,6 +51,7 @@ export const register = async (req, res) => {
         fullName: newUser.fullName,
         email: newUser.email,
         phoneNumber: newUser.phoneNumber,
+        familyMembers: newUser.familyMembers || [],
       },
     });
   } catch (error) {
@@ -99,7 +98,7 @@ export const login = async (req, res) => {
       expiresIn: "7d",
     });
 
-    // Send response
+    // Send response with cookie and JSON
     return res
       .status(200)
       .cookie("token", token, {
@@ -116,6 +115,7 @@ export const login = async (req, res) => {
           fullName: user.fullName,
           email: user.email,
           phoneNumber: user.phoneNumber,
+          familyMembers: user.familyMembers || [],
         },
       });
   } catch (error) {
@@ -152,24 +152,24 @@ export const logout = async (req, res) => {
 // GET LOGGED-IN USER
 export const getUser = async (req, res) => {
   try {
-    // req.user.id will come from the auth middleware
-    const user = await User.findById(req.user.id).select("-password")
+    // Use req.userId (set by your auth middleware)
+    const user = await User.findById(req.userId).select("-password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
-      })
+      });
     }
 
     return res.status(200).json({
       success: true,
       user,
-    })
+    });
   } catch (error) {
-    console.error("GetUser Error:", error)
+    console.error("GetUser Error:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Internal server error" })
+      .json({ success: false, message: "Internal server error" });
   }
-}
+};

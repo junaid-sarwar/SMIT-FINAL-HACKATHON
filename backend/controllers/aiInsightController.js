@@ -5,7 +5,7 @@ import { AiInsight } from "../models/AiInsight.js";
 export const getAllInsights = async (req, res) => {
   try {
     const insights = await AiInsight.find({ user: req.userId })
-      .populate("file", "reportName fileUrl date")
+      .populate("file", "reportName fileUrl date familyMemberName")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -29,7 +29,7 @@ export const getSingleInsight = async (req, res) => {
     const insight = await AiInsight.findOne({
       _id: id,
       user: req.userId,
-    }).populate("file", "reportName fileUrl date");
+    }).populate("file", "reportName fileUrl date familyMemberName");
 
     if (!insight) {
       return res.status(404).json({

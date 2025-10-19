@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { Navbar } from "@/components/shared/navbar";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, TrendingUp, AlertCircle, Share2, Download } from "lucide-react";
+import { Brain, FileText, Stethoscope } from "lucide-react";
 
 export default function InsightsPage() {
-  const [activeTab, setActiveTab] = useState("insights");
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,29 +18,29 @@ export default function InsightsPage() {
         });
 
         if (res.data.success && Array.isArray(res.data.insights)) {
-          // 🧠 Clean each insight
-          const cleanedInsights = res.data.insights.map((insight) => {
-            let cleaned = { ...insight };
+          const cleaned = res.data.insights.map((item) => {
+            let insight = { ...item };
 
-            // --- 🧹 CLEAN JSON BLOCK IF PRESENT ---
-            if (typeof cleaned.englishSummary === "string" && cleaned.englishSummary.includes("```json")) {
+            // 🧹 Clean markdown JSON block (from Gemini or GPT responses)
+            if (
+              typeof insight.englishSummary === "string" &&
+              insight.englishSummary.includes("```json")
+            ) {
               try {
-                const clean = cleaned.englishSummary
+                const clean = insight.englishSummary
                   .replace(/```json\n?/, "")
                   .replace(/```$/, "")
                   .trim();
-
                 const parsed = JSON.parse(clean);
-                cleaned = { ...cleaned, ...parsed }; // merge parsed fields (englishSummary, urduSummary, etc.)
-              } catch (err) {
-                console.warn("Failed to parse englishSummary JSON:", err);
+                insight = { ...insight, ...parsed };
+              } catch {
+                // ignore parsing errors silently
               }
             }
-
-            return cleaned;
+            return insight;
           });
 
-          setInsights(cleanedInsights);
+          setInsights(cleaned);
         } else {
           setInsights([]);
         }
@@ -60,89 +57,109 @@ export default function InsightsPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted-foreground">
-        Loading AI Insights...
+        Fetching your AI insights...
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <main className="min-h-screen bg-gradient-to-b from-indigo-50 via-purple-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <Navbar />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-4xl font-bold text-foreground mb-4">AI Health Insights</h1>
-        <p className="text-muted-foreground mb-8">
-          Personalized summaries generated from your uploaded reports.
-        </p>
+        {/* Header Section */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-extrabold text-indigo-700 dark:text-indigo-400 mb-2">
+            HealthMate AI Insights 🧠
+          </h1>
+          <p className="text-muted-foreground">
+            Deep analysis and personalized recommendations from your uploaded health reports.
+          </p>
+        </div>
 
+        {/* No Data State */}
         {insights.length === 0 ? (
-          <p className="text-muted-foreground">No insights available yet. Upload a report to analyze!</p>
+          <p className="text-center text-muted-foreground">
+            No AI insights yet. Upload a health report to get analyzed.
+          </p>
         ) : (
           insights.map((insight) => (
-            <Card key={insight._id} className="glass p-6 mb-6 space-y-3">
-              <h2 className="text-xl font-semibold text-foreground mb-2">{insight.reportName}</h2>
-
-              {/* 🧠 English Summary */}
-              <p className="text-sm text-muted-foreground mb-2">
-                {insight.englishSummary || "No summary available"}
-              </p>
-
-              {/* 🧠 Urdu Summary */}
-              {insight.urduSummary && (
-                <p className="text-sm text-muted-foreground mb-2" dir="rtl">
-                  {insight.urduSummary}
-                </p>
-              )}
-
-              <div className="mt-4 space-y-2">
-                {insight.abnormalValues?.length > 0 && (
-                  <>
-                    <h3 className="font-semibold text-red-500">⚠️ Abnormal Values</h3>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {insight.abnormalValues.map((val, i) => (
-                        <li key={i}>{val}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {insight.recommendedFoods?.length > 0 && (
-                  <>
-                    <h3 className="font-semibold text-green-600">🥗 Recommended Foods</h3>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {insight.recommendedFoods.map((food, i) => (
-                        <li key={i}>{food}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {insight.foodsToAvoid?.length > 0 && (
-                  <>
-                    <h3 className="font-semibold text-orange-600">🚫 Foods to Avoid</h3>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {insight.foodsToAvoid.map((food, i) => (
-                        <li key={i}>{food}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {insight.homeRemedies?.length > 0 && (
-                  <>
-                    <h3 className="font-semibold text-blue-600">🏡 Home Remedies</h3>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {insight.homeRemedies.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                <p className="text-xs text-muted-foreground italic mt-3">
-                  {insight.disclaimer}
+            <Card
+              key={insight._id}
+              className="p-6 mb-8 rounded-2xl shadow-sm bg-white/70 dark:bg-slate-800/60 backdrop-blur-md border border-indigo-100 dark:border-slate-700"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+                  <FileText className="w-5 h-5 text-indigo-500" />
+                  {insight.file?.reportName || "Health Report"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(insight.file?.date || insight.createdAt).toLocaleDateString()}
                 </p>
               </div>
+
+              {/* --- English Summary --- */}
+              <div className="mb-4">
+                <h3 className="font-semibold text-indigo-600 flex items-center gap-2 mb-1">
+                  <Brain className="w-4 h-4" /> AI Summary
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {insight.englishSummary || "No summary available."}
+                </p>
+              </div>
+
+              {/* --- Urdu Summary --- */}
+              {insight.urduSummary && (
+                <div className="mb-4" dir="rtl">
+                  <h3 className="font-semibold text-pink-600 mb-1">اردو خلاصہ</h3>
+                  <p className="text-sm text-muted-foreground">{insight.urduSummary}</p>
+                </div>
+              )}
+
+              {/* --- Doctor Questions --- */}
+              {insight.doctorQuestions?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-blue-600 flex items-center gap-2 mb-1">
+                    <Stethoscope className="w-4 h-4" /> Suggested Doctor Questions
+                  </h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    {insight.doctorQuestions.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* --- Food Suggestions --- */}
+              {insight.foodSuggestions?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-green-600 mb-1">🥗 Recommended Foods</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    {insight.foodSuggestions.map((f, i) => (
+                      <li key={i}>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* --- Home Remedies --- */}
+              {insight.homeRemedies?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-amber-600 mb-1">🏡 Home Remedies</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    {insight.homeRemedies.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* --- Disclaimer --- */}
+              <p className="text-xs text-muted-foreground italic mt-2">
+                {insight.disclaimer ||
+                  "Note: This AI-generated insight is for informational purposes only and not a substitute for professional medical advice."}
+              </p>
             </Card>
           ))
         )}

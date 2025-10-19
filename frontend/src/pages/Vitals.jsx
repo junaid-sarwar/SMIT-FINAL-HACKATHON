@@ -147,7 +147,7 @@ const token = document.cookie
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Blood Pressure</p>
-                <p className="text-3xl font-bold text-secondary mt-2">{latestVitals.bp || "--/--"}</p>
+                <p className="text-3xl font-bold text-black mt-2">{latestVitals.bp || "--/--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">mmHg</p>
               </div>
               <Droplet className="w-10 h-10 text-secondary/20" />
@@ -158,7 +158,7 @@ const token = document.cookie
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Temperature</p>
-                <p className="text-3xl font-bold text-accent mt-2">{latestVitals.notes?.match(/Temp: ([\d.]+)/)?.[1] || "--"}</p>
+                <p className="text-3xl font-bold text-black mt-2">{latestVitals.notes?.match(/Temp: ([\d.]+)/)?.[1] || "--"}</p>
                 <p className="text-xs text-muted-foreground mt-1">°F</p>
               </div>
               <Thermometer className="w-10 h-10 text-accent/20" />

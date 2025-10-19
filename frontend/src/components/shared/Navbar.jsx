@@ -5,7 +5,7 @@ export function Navbar() {
   const location = useLocation()
 
   const navItems = [
-    { href: "/", label: "Dashboard" },
+    { href: "/dashboard", label: "Dashboard" },
     { href: "/upload", label: "Upload Report" },
     { href: "/insights", label: "AI Insights" },
     { href: "/vitals", label: "Vitals" },

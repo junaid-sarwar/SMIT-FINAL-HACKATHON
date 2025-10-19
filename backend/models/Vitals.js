@@ -8,6 +8,10 @@ const vitalsSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    familyMemberName: {
+      type: String,
+      default: "Self",
+    },
     bp: {
       type: String, // e.g. "120/80"
       default: "",

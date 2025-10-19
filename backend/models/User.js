@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
+    familyMembers: [
+  {
+    name: String,
+    relation: String,
+    age: Number,
+    gender: String,
+  }
+]
   },
   { timestamps: true }
 );

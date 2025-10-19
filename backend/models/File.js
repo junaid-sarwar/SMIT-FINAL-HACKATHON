@@ -21,6 +21,7 @@ const fileSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    familyMemberName: { type: String, default: "Self" },
     date: {
       type: Date,
       default: Date.now,

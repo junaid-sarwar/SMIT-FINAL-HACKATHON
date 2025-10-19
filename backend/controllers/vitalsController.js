@@ -4,9 +4,9 @@ import { Vitals } from "../models/Vitals.js";
 // ➕ Add New Vitals
 export const addVitals = async (req, res) => {
   try {
-    const { heartRate, bloodPressureSys, bloodPressureDia, temperature, weight } = req.body;
+    const { familyMemberName, bp, sugar, weight, notes, date } = req.body;
 
-    if (!heartRate && !bloodPressureSys && !bloodPressureDia && !temperature && !weight) {
+    if (!bp && !sugar && !weight && !notes) {
       return res.status(400).json({
         success: false,
         message: "Please provide at least one vital reading.",
@@ -15,11 +15,12 @@ export const addVitals = async (req, res) => {
 
     const newVitals = await Vitals.create({
       user: req.userId,
-      heartRate,
-      bloodPressureSys,
-      bloodPressureDia,
-      temperature,
-      weight,
+      familyMemberName: familyMemberName || "Self",
+      bp: bp || "",
+      sugar: typeof sugar === "number" ? sugar : sugar ? Number(sugar) : null,
+      weight: typeof weight === "number" ? weight : weight ? Number(weight) : null,
+      notes: notes || "",
+      date: date ? new Date(date) : Date.now(),
     });
 
     return res.status(201).json({
@@ -36,10 +37,14 @@ export const addVitals = async (req, res) => {
   }
 };
 
-// 📜 Get All Vitals History
+// 📜 Get All Vitals History (optionally filter by familyMemberName)
 export const getVitalsHistory = async (req, res) => {
   try {
-    const vitals = await Vitals.find({ user: req.userId }).sort({ createdAt: -1 });
+    const { familyMemberName } = req.query;
+    const filter = { user: req.userId };
+    if (familyMemberName) filter.familyMemberName = familyMemberName;
+
+    const vitals = await Vitals.find(filter).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -54,10 +59,14 @@ export const getVitalsHistory = async (req, res) => {
   }
 };
 
-// 🔹 Get Latest Vitals
+// 🔹 Get Latest Vitals (optionally per family member)
 export const getLatestVitals = async (req, res) => {
   try {
-    const latest = await Vitals.findOne({ user: req.userId }).sort({ createdAt: -1 });
+    const { familyMemberName } = req.query;
+    const filter = { user: req.userId };
+    if (familyMemberName) filter.familyMemberName = familyMemberName;
+
+    const latest = await Vitals.findOne(filter).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
